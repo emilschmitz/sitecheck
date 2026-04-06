@@ -5,11 +5,11 @@ from a2a.server.events import EventQueue
 from a2a.utils import new_agent_text_message
 from openai import AsyncOpenAI
 
-from config import A2ASettings
+from a2a_agent.settings import Settings
 from a2a_agent.tools import execute_bash_command
 from mcp_server.server import process_locations_batch
 
-settings = A2ASettings()  # type: ignore
+settings = Settings()
 
 class SiteCheckAgentExecutor(AgentExecutor):
     def __init__(self):

@@ -3,9 +3,9 @@ import json
 from typing import Any
 import aiohttp
 from openai import AsyncOpenAI
-from config import MCPSettings
+from mcp_server.settings import Settings
 
-settings = MCPSettings()  # type: ignore
+settings = Settings()
 
 openai_client = AsyncOpenAI(
     base_url="https://openrouter.ai/api/v1",

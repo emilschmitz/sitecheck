@@ -1,9 +1,9 @@
 import urllib.parse
 from typing import Any
 import aiohttp
-from config import MCPSettings
+from mcp_server.settings import Settings
 
-settings = MCPSettings()  # type: ignore
+settings = Settings()
 
 async def check_street_view_metadata(
     session: aiohttp.ClientSession, address: str
