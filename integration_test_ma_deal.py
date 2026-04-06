@@ -4,7 +4,6 @@
 #   "requests",
 #   "tqdm",
 #   "python-on-whales",
-#   "kaggle",
 # ]
 # ///
 """
@@ -12,13 +11,11 @@ M&A Due Diligence Integration Test
 
 This script simulates a real-world real estate audit for an M&A deal.
 Execution Flow:
-1. Environment Check: Verifies the 'data/' directory exists.
-2. Dataset Acquisition: Uses the Kaggle API to download the Target Store Dataset.
-3. Infrastructure Boot: Uses the Docker Compose SDK (python-on-whales) to build and start services.
-4. Data Extraction: Loads the CSV and extracts physical store addresses.
-5. A2A Request: Sends a standardized A2A message to the Subagent.
-6. Verification: Receives the final report paths and prints the status.
-7. Cleanup: Automatically tears down containers on completion.
+1. Infrastructure Boot: Uses the Docker Compose SDK (python-on-whales) to build and start services.
+2. Data Extraction: Loads the local CSV (data/target_locations.csv) and extracts physical store addresses.
+3. A2A Request: Sends a standardized A2A message to the Subagent.
+4. Verification: Receives the final report paths and prints the status.
+5. Cleanup: Automatically tears down containers on completion.
 """
 import asyncio
 import argparse
@@ -29,7 +26,6 @@ import socket
 import pandas as pd
 import requests
 from python_on_whales import docker
-from kaggle.api.kaggle_api_extended import KaggleApi
 import subprocess
 import datetime
 
@@ -52,39 +48,6 @@ def wait_for_port(port, host='localhost', timeout=120.0):
         if time.perf_counter() - start_time > timeout:
             return False
 
-def download_dataset():
-    dataset_path = "data/target_locations.csv"
-    if os.path.exists(dataset_path):
-        print(f"✅ Dataset already exists at {dataset_path}")
-        return
-
-    print("📥 Downloading Target Store Dataset via Kaggle API...")
-    try:
-        os.makedirs("data", exist_ok=True)
-        api = KaggleApi()
-        api.authenticate()
-        
-        # Download and unzip
-        api.dataset_download_file(
-            "ben1989/target-store-dataset", 
-            file_name="target.csv", 
-            path="data"
-        )
-        
-        # Kaggle API downloads it as target.csv.zip, we need to unzip it
-        import zipfile
-        zip_path = "data/target.csv.zip"
-        if os.path.exists(zip_path):
-            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                zip_ref.extractall("data")
-            os.remove(zip_path)
-            
-        os.rename("data/target.csv", dataset_path)
-        print(f"✅ Dataset prepared at {dataset_path}")
-    except Exception as e:
-        print(f"❌ Kaggle API Error: {e}")
-        print("Falling back to small mock sample...")
-
 async def run_ma_due_diligence_test(max_locations: int = 50):
     print("=" * 70)
     print("MOCK M&A DEAL: Amazon is acquiring Target")
@@ -97,10 +60,12 @@ async def run_ma_due_diligence_test(max_locations: int = 50):
     if os.path.exists(dataset_path):
         print(f"Loading locations from {dataset_path}...")
         df = pd.read_csv(dataset_path, encoding="latin1")
+        # Extract addresses from the Kaggle dataset format
         for _, row in df.head(max_locations).iterrows():
             addr = f"{row['Address.FormattedAddress']}, {row['Address.City']}, {row['Address.Subdivision']}"
             addresses.append(addr)
     else:
+        print(f"⚠️ Dataset not found at {dataset_path}, using mock addresses.")
         addresses = ["1901 E Madison St, Seattle, WA 98122", "401 Biscayne Blvd, Miami, FL 33132"]
 
     task_text = f"Perform a due diligence audit on these Target locations: {', '.join(addresses)}"
@@ -120,6 +85,7 @@ async def run_ma_due_diligence_test(max_locations: int = 50):
     }
 
     try:
+        # Increase timeout as the audit might take some time
         response = requests.post(A2A_URL, json=payload, timeout=600)
         response.raise_for_status()
         print("\n✅ RECEIVED RESPONSE FROM SUBAGENT:")
@@ -132,8 +98,6 @@ if __name__ == "__main__":
     parser.add_argument("--limit", type=int, default=5)
     args = parser.parse_args()
 
-    download_dataset()
-    
     os.makedirs("logs", exist_ok=True)
     session_log = f"logs/session_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
     print(f"📝 Logging session to {session_log}")

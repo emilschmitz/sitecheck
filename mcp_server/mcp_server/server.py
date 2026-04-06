@@ -161,9 +161,9 @@ async def process_locations_batch(
     df["Image_Age_Months"] = age_months_list
 
     # Save outputs
-    os.makedirs("data", exist_ok=True)
-    excel_file = "data/site_check_report.xlsx"
-    jsonl_file = "data/site_check_report.jsonl"
+    os.makedirs("output", exist_ok=True)
+    excel_file = "output/site_check_report.xlsx"
+    jsonl_file = "output/site_check_report.jsonl"
     
     df.to_excel(excel_file, index=False)
     

@@ -11,6 +11,7 @@ services:
       - MCP_SERVER_URL=http://mcp:8001/sse
     volumes:
       - ./data:/app/data
+      - ./output:/app/output
       - ./a2a_agent:/app/a2a_agent
     command: ["uvicorn", "a2a_agent.server:app", "--host", "0.0.0.0", "--reload"]
   mcp:
@@ -25,5 +26,6 @@ services:
       - VISION_MODEL=${VISION_MODEL}
     volumes:
       - ./data:/app/data
+      - ./output:/app/output
       - ./mcp_server:/app/mcp_server
     command: ["fastmcp", "run", "mcp_server/mcp_server/server.py", "--transport", "sse", "--port", "8001", "--host", "0.0.0.0", "--reload"]
