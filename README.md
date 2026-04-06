@@ -23,11 +23,26 @@ Then, the agent pipes these inputs into our custom Site Check MCP, which subsequ
 ## Architecture & workflow
 
 ```text
-┌──────────────────┐      1. Messy Text     ┌────────────────┐      2. Clean JSON      ┌──────────────┐
-│  MAIN AGENT      │───────────────────────>│   SUBAGENT     │────────────────────────>│  SITE CHECK  │
-│ (e.g. OpenHands) │<───────────────────────│  (A2A Server)  │<────────────────────────│  MCP SERVER  │
-└──────────────────┘      4. Full Report    └────────────────┘      3. JSON Result     └──────────────┘
-                         (Relayed)                                (from Tools)
+┌──────────────────┐
+│    MAIN AGENT    │
+│ (e.g. OpenHands) │
+└──────────────────┘
+    │          ▲
+    │ 1. Messy │ 4. Full Report
+    │    Text  │    (Relayed)
+    ▼          │
+┌──────────────────┐
+│     SUBAGENT     │
+│   (A2A Server)   │
+└──────────────────┘
+    │          ▲
+    │ 2. Clean │ 3. JSON Result
+    │    JSON  │    (from Tools)
+    ▼          │
+┌──────────────────┐
+│    SITE CHECK    │
+│    MCP SERVER    │
+└──────────────────┘
 ```
 
 The A2A subagent acts as a bridge, handling the heavy lifting of data preparation and tool orchestration, which saves context and simplifies the main agent's task.
