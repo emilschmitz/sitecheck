@@ -1,5 +1,4 @@
 services:
-  # The A2A Subagent Service
   a2a:
     build: 
       context: .
@@ -8,12 +7,11 @@ services:
       - "8000:8000"
     environment:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - EXTRACTION_MODEL=${EXTRACTION_MODEL:-qwen/qwen3.5-flash-02-23}
-      - MCP_SERVER_URL=${MCP_SERVER_URL:-http://mcp:8001/sse}
+      - EXTRACTION_MODEL=${EXTRACTION_MODEL}
+      - MCP_SERVER_URL=${MCP_SERVER_URL}
     volumes:
       - ./data:/app/data
 
-  # The MCP Server (Standalone)
   mcp:
     build:
       context: .
@@ -23,6 +21,6 @@ services:
     environment:
       - GCP_API_KEY=${GCP_API_KEY}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - VISION_MODEL=${VISION_MODEL:-qwen/qwen3.5-flash-02-23}
+      - VISION_MODEL=${VISION_MODEL}
     volumes:
       - ./data:/app/data

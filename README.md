@@ -83,7 +83,7 @@ curl -X POST http://localhost:8000/ \
         "role": "user",
         "parts": [{
           "kind": "text",
-          "text": "Verify these properties from the contract: 1901 E Madison St, Seattle and 401 Biscayne Blvd, Miami."
+          "text": "Please read data/sample_contract.txt, filter for all properties in California, and run an audit on those locations to check if there are any obvious signs of exterior damage. Provide a brief summary of the audit results and the generated files when you are done."
         }],
         "messageId": "msg-001"
       }

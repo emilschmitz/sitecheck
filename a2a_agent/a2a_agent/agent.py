@@ -47,9 +47,6 @@ class SiteCheckAgentExecutor(AgentExecutor):
                 if choice.tool_calls:
                     for tool_call in choice.tool_calls:
                         result = await self._dispatch_tool(tool_call, event_queue)
-                        # Relay the direct MCP response as the final step if it was the pipeline
-                        if tool_call.function.name == "run_site_check_pipeline":
-                            await event_queue.enqueue_event(new_agent_text_message(result))
                         
                         messages.append({
                             "role": "tool",
@@ -83,10 +80,17 @@ class SiteCheckAgentExecutor(AgentExecutor):
 
     def _get_system_prompt(self) -> str:
         return (
-            "You are a sophisticated real estate due diligence subagent. "
-            "You have access to a local bash shell and a custom SiteCheck pipeline. "
-            "Use 'execute_bash_command' to read files or search documents. "
-            "If you find unstructured addresses, call 'run_site_check_pipeline' to perform the aerial audit."
+            "You are a versatile data analysis and automation subagent. "
+            "Your primary goal is to assist the main agent by processing requests using your available tools. "
+            "You have access to a local bash shell ('execute_bash_command') for file operations and "
+            "a specialized image/location processing pipeline ('run_site_check_pipeline'). "
+            "Analyze the user's instructions carefully. If they request filtering, data extraction, "
+            "or site analysis, use the appropriate tools to fulfill the request. "
+            "You can find expert guidance for various domains in the 'a2a_agent/skills/' directory. "
+            "Use 'execute_bash_command' to list and read these skill files if you believe they will help you "
+            "refine your approach to the current task. "
+            "After completing all tool calls, provide a concise, professional summary of your actions, "
+            "the results obtained, and the status of any generated files."
         )
 
     def _get_tools(self) -> list[dict[str, Any]]:
