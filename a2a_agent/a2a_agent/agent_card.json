@@ -1,6 +1,7 @@
 {
   "protocol_version": "2024-11-05",
   "name": "SiteCheckSubagent",
+  "version": "0.1.0",
   "description": "A versatile data analysis and automation subagent. Specialized in processing unstructured data, performing file operations, and executing location-based visual audits.",
   "capabilities": {
     "can_receive_files": false,

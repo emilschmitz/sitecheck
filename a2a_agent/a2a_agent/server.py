@@ -1,7 +1,6 @@
 import pathlib
 import json
 import uvicorn
-from importlib.metadata import version
 from a2a.server.apps.jsonrpc.fastapi_app import A2AFastAPIApplication
 from a2a.server.request_handlers.default_request_handler import DefaultRequestHandler
 from a2a.server.tasks.inmemory_task_store import InMemoryTaskStore
@@ -11,9 +10,6 @@ from a2a_agent.agent import SiteCheckAgentExecutor
 
 
 import logging
-
-# Get version from package metadata
-VERSION = version("a2a-sitecheck")
 
 def create_app():
     logging.basicConfig(
@@ -27,7 +23,6 @@ def create_app():
         card_data = json.load(f)
     
     # Inject dynamic fields
-    card_data["version"] = VERSION
     card_data["url"] = "http://localhost:8000"
     
     agent_card = AgentCard(**card_data)

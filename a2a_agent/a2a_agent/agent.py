@@ -26,8 +26,8 @@ class SiteCheckAgentExecutor(AgentExecutor):
     async def execute(self, context: RequestContext, event_queue: EventQueue) -> None:
         context_text = self._extract_text(context)
         
-        # Ensure we have a task ID and emit it so clients can resubscribe
-        if context.task:
+        # Optional check: usually only full execution environments have task context
+        if hasattr(context, "task") and context.task:
             await event_queue.enqueue_event(context.task)
 
         await event_queue.enqueue_event(
@@ -98,7 +98,7 @@ class SiteCheckAgentExecutor(AgentExecutor):
             "You have access to a local bash shell ('execute_bash_command') for file operations and "
             "a specialized image/location processing pipeline ('run_site_check_pipeline'). "
             "Analyze the user's instructions carefully. If they request filtering, data extraction, "
-            "or site analysis, use the appropriate tools to fulfill the request. "
+            "and/or site analysis, use the appropriate tools to fulfill the request. "
             "You can find expert guidance for various domains in the 'a2a_agent/skills/' directory. "
             "Use 'execute_bash_command' to list and read these skill files if you believe they will help you "
             "refine your approach to the current task. "
