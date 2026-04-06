@@ -15,7 +15,7 @@ VERSION = version("a2a-sitecheck")
 
 def create_app():
     # Load A2A Metadata
-    card_path = "agent_card.json"
+    card_path = pathlib.Path(__file__).parent / "agent_card.json"
     with open(card_path, "r") as f:
         card_data = json.load(f)
     

@@ -67,6 +67,10 @@ class SiteCheckAgentExecutor(AgentExecutor):
                 )
                 break
 
+    async def cancel(self, context: RequestContext) -> None:
+        """Handle cancellation of the agent execution."""
+        pass
+
     def _extract_text(self, context: RequestContext) -> str:
         text = ""
         if hasattr(context.message, "parts"):

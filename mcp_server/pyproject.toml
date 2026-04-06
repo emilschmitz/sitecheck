@@ -2,7 +2,6 @@
 name = "mcp-sitecheck"
 version = "0.1.0"
 description = "MCP Server for Site Check"
-readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "fastmcp>=3.1.1",
@@ -21,4 +20,6 @@ requires = ["uv_build>=0.11.2,<0.12"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
+module-name = "mcp_server"
 module-root = "."
+include = ["mcp_server/*.py"]

@@ -18,8 +18,6 @@ Then, it'll pipe these inputs into our custom MCP, which then runs an analysis o
 
 ## Architecture & workflow
 
-Using our A2A server as a subagent of a main agent, we'd have the following architecture:
-
 ```text
 ┌──────────────────┐      1. Messy Text     ┌────────────────┐      2. Clean JSON      ┌──────────────┐
 │  MAIN AGENT      │───────────────────────>│   SUBAGENT     │────────────────────────>│  SITE CHECK  │
@@ -28,7 +26,7 @@ Using our A2A server as a subagent of a main agent, we'd have the following arch
                          (Relayed)                                (from Tools)
 ```
 
-The MCP server can be used in a standalone fashion, but we use an A2A compatible agent as the entrypoint for the site check pipeline. This agent transforms the data into a format compatible with the MCP server and generates a suitable prompt and JSON schema for structured generation as inputs for the MCP. The A2A server can be used as a subagent for a main agent instead of using the MCP directly. This spares the main agents context from the tokens used for preparing the data and other inputs for the MCP.
+The Sitecheck MCP server can be used in a standalone fashion, but we can also use an A2A compatible agent as the entrypoint for the site check pipeline. This agent transforms the data into a format compatible with the MCP server and generates a suitable prompt and JSON schema for structured generation as inputs for the MCP. The A2A server is there to be used as a subagent for a main agent instead of using the MCP directly. This spares the main agents context the tokens used for preparing the data and other inputs for the MCP.
 
 ## Get it up and running
 
@@ -47,7 +45,6 @@ docker-compose up
 ```
 
 ## Try it out
-
 
 ### Sample M&A dataset
 

@@ -1,0 +1,11 @@
+[project]
+name = "sitecheck-mcp"
+version = "0.1.0"
+description = "Site Check Pipeline Workspace"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv]
+workspace = { members = ["a2a_agent", "mcp_server"] }
+managed = true
