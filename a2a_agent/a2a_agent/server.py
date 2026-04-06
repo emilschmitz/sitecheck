@@ -13,9 +13,16 @@ from a2a_agent.settings import Settings
 def create_app():
     settings = Settings()
     
+    # Ensure logs directory exists
+    log_dir = pathlib.Path("logs")
+    log_dir.mkdir(exist_ok=True)
+    
     logging.basicConfig(
         level=settings.log_level,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.StreamHandler()
+        ]
     )
     logger = logging.getLogger(__name__)
     logger.info(f"Starting A2A Agent with Log Level: {settings.log_level}")

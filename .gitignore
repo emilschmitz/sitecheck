@@ -5,7 +5,8 @@ __pycache__
 .venv
 *.log
 *.jsonl
-/output/
+output/*
+!output/.gitkeep
 *.xlsx
 !data/target_locations.csv
 .ruff_cache/

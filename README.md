@@ -4,7 +4,7 @@ Automated OSINT pipeline containing an A2A-compatible custom agent and an MCP se
 
 ## Motivation
 
-This project was inspired by legal use cases, but may be useful across many domains.
+This project was inspired by legal use cases, but may be useful any domain relying on investigative work on Google Maps.
 
 **Example use:**
 
@@ -28,17 +28,6 @@ Then, the agent pipes these inputs into our custom Site Check MCP, which subsequ
 
 The A2A subagent acts as a bridge, handling the heavy lifting of data preparation and tool orchestration, which saves context and simplifies the main agent's task.
 
-## Environment setup
-
-You'll need a GCP API key with the [Street View static API](https://console.cloud.google.com/marketplace/product/google/street-view-image-backend.googleapis.com) enabled.
-
-```bash
-# 1. Setup Env
-cp .env.sample .env # Fill in GCP_API_KEY and OPENROUTER_API_KEY
-
-# 2. Launch Services
-docker-compose up
-```
 
 ## Usage
 
@@ -46,46 +35,31 @@ docker-compose up
 
 The [Target Store Dataset from Kaggle](https://www.kaggle.com/datasets/ben1989/target-store-dataset) containing approx. 2000 locations is included in this repository at `data/target_locations.csv` for demonstration purposes.
 
-### Hook up your main agent
+### Environment setup
 
-To connect an external agent (like Codex or a custom orchestrator) to this pipeline, point it to the A2A endpoint:
+You'll need a GCP API key with the [Street View static API](https://console.cloud.google.com/marketplace/product/google/street-view-image-backend.googleapis.com) enabled and an API key for an LLM provider (e.g. OpenRouter).
+
+Run `cp a2a_agent/.env.sample a2a_agent/.env` and `cp mcp_server/.env.sample mcp_server/.env` and fill in your keys in the `.env` files. You can also specify the `BASE_URL` if you're not using OpenRouter.
+
+### Hooking up your main agent
+
+You can let another agent, like Claude Code, use this pipeline as a subagent. To do that, start the A2A and MCP with `docker-compose up` and point your agent to the A2A endpoint:
 
 - **Endpoint**: `http://localhost:8000/`
 - **Protocol**: A2A (JSON-RPC 2.0)
 
-The main agent will hopefully know what to do.
+If your main agent speaks A2A, it should know what to do.
 
-### ...or manually trigger the audit via A2A over curl
+### ...or try it out manually via the Interactive Integration Test
 
-You can trigger the entire pipeline by sending a natural language request to the A2A agent. The agent will use its tools to find the dataset, filter it (e.g., by state), and then run the site audit with real-time feedback.
-
-#### One-Step Streaming Audit (Clean Terminal Demo)
-
-This command pipes the stream into `jq` to show only the agent's real-time updates (like the spinner and progress bars) on a single line.
+If you are your own main agent and would like to use the pipeline manually, the script `integration_test.py` provides an interactive terminal UI for chatting with the agent. It's the best way to verify the pipeline for your use case end-to-end.
 
 ```bash
-curl -sN -X POST http://localhost:8000/ \
-  -H "Content-Type: application/json" \
-  -H "Accept: text/event-stream" \
-  -d '{
-    "jsonrpc": "2.0",
-    "method": "message/stream",
-    "params": {
-      "message": {
-        "role": "user",
-        "parts": [{"kind": "text", "text": "Read data/target_locations.csv. Filter for properties in CA. Run an audit on those locations."
-        }],
-        "message_id": "msg-001"
-      }
-    },
-    "id": 1
-  }' | sed -u 's/^data: //g' | jq -rj --unbuffered '.params | (.. | .text? // empty)'
+# Run Integration Test
+uv run integration_test.py
 ```
 
-### Integration Test
+Once in the chat, send in a natural language request like:
+> "Read data/target_locations.csv. Check that every location listed in CA exists, check its condition, and availability of parking space."
 
-Run the automated test suite to verify the end-to-end flow:
-
-```bash
-uv run integration_test_ma_deal.py --env-file local.env
-```
+The runtime should be under a minute for the above prompt. The MCP is heavily optimized and runs all image fetching and analysis in parallel.

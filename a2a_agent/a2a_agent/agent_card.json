@@ -2,7 +2,8 @@
   "protocol_version": "2024-11-05",
   "name": "SiteCheckSubagent",
   "version": "0.1.0",
-  "description": "A versatile data analysis and automation subagent. Specialized in processing unstructured data, performing file operations, and executing location-based visual audits.",
+  "description": 
+      "A subagent for checking large numbers of sites on google maps and street view for custom criteria, e.g. 'Check if there is a store at every listed location'",
   "capabilities": {
     "can_receive_files": false,
     "can_send_files": true,
@@ -12,10 +13,10 @@
   "default_output_modes": ["text"],
   "skills": [
     {
-      "id": "site-audit",
-      "name": "site_audit",
-      "description": "Audits physical property conditions from unstructured text (e.g., contracts, emails, lists).",
-      "tags": ["osint", "real-estate", "audit"]
+      "id": "site-check",
+      "name": "site_check",
+      "description": "checks physical conditions from unstructured text (e.g., contracts, emails, lists).",
+      "tags": ["osint", "real-estate", "check"]
     }
   ]
 }
