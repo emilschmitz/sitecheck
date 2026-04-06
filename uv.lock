@@ -17,7 +17,7 @@ resolution-markers = [
 members = [
     "a2a-sitecheck",
     "mcp-sitecheck",
-    "sitecheck-mcp",
+    "sitecheck-pipeline",
 ]
 
 [[package]]
@@ -1926,7 +1926,7 @@ wheels = [
 ]
 
 [[package]]
-name = "sitecheck-mcp"
+name = "sitecheck-pipeline"
 version = "0.1.0"
 source = { virtual = "." }
 

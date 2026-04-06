@@ -8,7 +8,7 @@ services:
     environment:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - EXTRACTION_MODEL=${EXTRACTION_MODEL}
-      - MCP_SERVER_URL=${MCP_SERVER_URL}
+      - MCP_SERVER_URL=http://mcp:8001/sse
     volumes:
       - ./data:/app/data
 
