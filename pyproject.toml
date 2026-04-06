@@ -1,0 +1,20 @@
+[project]
+name = "sitecheck-mcp"
+version = "0.1.0"
+description = "OSINT-driven real estate due diligence pipeline using A2A and MCP."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "a2a-sdk>=0.3.25",
+    "aiohttp>=3.13.4",
+    "fastapi>=0.135.2",
+    "fastmcp>=3.1.1",
+    "openai>=2.30.0",
+    "openpyxl>=3.1.5",
+    "pandas>=3.0.1",
+    "pydantic>=2.12.5",
+    "pydantic-settings>=2.13.1",
+    "python-dotenv>=1.2.2",
+    "tqdm>=4.67.3",
+    "uvicorn>=0.42.0",
+]
