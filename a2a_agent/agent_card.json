@@ -12,7 +12,8 @@
     {
       "id": "site-audit",
       "name": "site_audit",
-      "description": "Audits physical property conditions from unstructured text (e.g., contracts, emails, lists)."
+      "description": "Audits physical property conditions from unstructured text (e.g., contracts, emails, lists).",
+      "tags": ["osint", "real-estate", "audit"]
     }
   ]
 }

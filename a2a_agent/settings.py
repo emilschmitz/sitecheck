@@ -9,6 +9,10 @@ class Settings(BaseSettings):
         default="qwen/qwen3.5-flash-02-23",
         validation_alias=AliasChoices("A2A_EXTRACTION_MODEL", "EXTRACTION_MODEL")
     )
+    mcp_server_url: str = Field(
+        default="http://mcp-sitecheck:8001/sse",
+        validation_alias=AliasChoices("A2A_MCP_SERVER_URL", "MCP_SERVER_URL")
+    )
     
     model_config = SettingsConfigDict(
         env_file=".env",

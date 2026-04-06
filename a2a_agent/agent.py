@@ -5,9 +5,11 @@ from a2a.server.events import EventQueue
 from a2a.utils import new_agent_text_message
 from openai import AsyncOpenAI
 
+from mcp.client.session import ClientSession
+from mcp.client.sse import sse_client
+
 from a2a_agent.settings import Settings
 from a2a_agent.tools import execute_bash_command
-from mcp_server.server import process_locations_batch
 
 settings = Settings()
 
@@ -139,14 +141,14 @@ class SiteCheckAgentExecutor(AgentExecutor):
             num_sites = len(args['addresses'])
             await event_queue.enqueue_event(new_agent_text_message(f"🚀 Auditing {num_sites} locations..."))
             
-            # Progress callback
-            async def report_progress(msg: str):
-                await event_queue.enqueue_event(new_agent_text_message(f"📡 {msg}"))
-
-            return await process_locations_batch(
-                addresses=args["addresses"],
-                analysis_prompt=args["analysis_prompt"],
-                analysis_schema=args["analysis_schema"]
-            )
+            try:
+                async with sse_client(settings.mcp_server_url) as (read_stream, write_stream):
+                    async with ClientSession(read_stream, write_stream) as session:
+                        await session.initialize()
+                        result = await session.call_tool("process_locations_batch", args)
+                        # MCP tool returns content list
+                        return result.content[0].text
+            except Exception as e:
+                return f"MCP Network Error: {str(e)}"
         
         return f"Unknown tool: {name}"

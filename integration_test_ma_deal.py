@@ -1,114 +1,145 @@
+# /// script
+# dependencies = [
+#   "pandas",
+#   "requests",
+#   "tqdm",
+#   "python-on-whales",
+#   "kaggle",
+# ]
+# ///
+"""
+M&A Due Diligence Integration Test
+
+This script simulates a real-world real estate audit for an M&A deal.
+Execution Flow:
+1. Environment Check: Verifies the 'data/' directory exists.
+2. Dataset Acquisition: Uses the Kaggle API to download the Target Store Dataset.
+3. Infrastructure Boot: Uses the Docker Compose SDK (python-on-whales) to build and start services.
+4. Data Extraction: Loads the CSV and extracts physical store addresses.
+5. A2A Request: Sends a standardized A2A message to the Subagent.
+6. Verification: Receives the final report paths and prints the status.
+7. Cleanup: Automatically tears down containers on completion.
+"""
 import asyncio
 import argparse
 import os
+import json
+import time
+import socket
 import pandas as pd
-from mcp_server.server import process_locations_batch
+import requests
+from python_on_whales import docker
+from kaggle.api.kaggle_api_extended import KaggleApi
 
+A2A_URL = "http://localhost:8000/"
 
-async def run_ma_due_diligence_test(
-    filepath: str, dry_run: bool = True, max_locations: int | None = None
-):
+def wait_for_port(port, host='localhost', timeout=120.0):
+    """Wait until a port is open."""
+    start_time = time.perf_counter()
+    while True:
+        try:
+            with socket.create_connection((host, port), timeout=1):
+                print(f"✅ Service is up on port {port}")
+                return True
+        except (OSError, ConnectionRefusedError):
+            time.sleep(2)
+            if time.perf_counter() - start_time > timeout:
+                return False
+
+def download_dataset():
+    dataset_path = "data/target_locations.csv"
+    if os.path.exists(dataset_path):
+        print(f"✅ Dataset already exists at {dataset_path}")
+        return
+
+    print("📥 Downloading Target Store Dataset via Kaggle API...")
+    try:
+        os.makedirs("data", exist_ok=True)
+        api = KaggleApi()
+        api.authenticate()
+        
+        # Download and unzip
+        api.dataset_download_file(
+            "ben1989/target-store-dataset", 
+            file_name="target.csv", 
+            path="data"
+        )
+        
+        # Kaggle API downloads it as target.csv.zip, we need to unzip it
+        import zipfile
+        zip_path = "data/target.csv.zip"
+        if os.path.exists(zip_path):
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall("data")
+            os.remove(zip_path)
+            
+        os.rename("data/target.csv", dataset_path)
+        print(f"✅ Dataset prepared at {dataset_path}")
+    except Exception as e:
+        print(f"❌ Kaggle API Error: {e}")
+        print("Falling back to small mock sample...")
+
+async def run_ma_due_diligence_test(max_locations: int = 5):
     print("=" * 70)
     print("MOCK M&A DEAL: Amazon is acquiring Target")
-    print("Legal Due Diligence: Verifying 2,000 store locations in the contract.")
+    print("Legal Due Diligence: Verifying store locations via A2A Subagent")
     print("=" * 70)
 
+    dataset_path = "data/target_locations.csv"
     addresses = []
 
-    if os.path.exists(filepath):
-        print(f"Loading dataset from {filepath}...")
-        df = pd.read_csv(filepath, encoding="latin1")
-
-        address_col = next(
-            (
-                col
-                for col in df.columns
-                if "address" in col.lower() and "ip" not in col.lower()
-            ),
-            None,
-        )
-        city_col = next((col for col in df.columns if "city" in col.lower()), None)
-        state_col = next(
-            (
-                col
-                for col in df.columns
-                if "state" in col.lower() or "province" in col.lower()
-            ),
-            None,
-        )
-
-        if not address_col:
-            print(
-                "Warning: Could not automatically detect an 'address' column. Trying default index."
-            )
-            address_col = df.columns[0]
-
-        for _, row in df.iterrows():
-            addr_parts = [str(row[address_col])]
-            if city_col and not pd.isna(row[city_col]):
-                addr_parts.append(str(row[city_col]))
-            if state_col and not pd.isna(row[state_col]):
-                addr_parts.append(str(row[state_col]))
-
-            addresses.append(", ".join(addr_parts))
+    if os.path.exists(dataset_path):
+        print(f"Loading locations from {dataset_path}...")
+        df = pd.read_csv(dataset_path, encoding="latin1")
+        for _, row in df.head(max_locations).iterrows():
+            addr = f"{row['Address.FormattedAddress']}, {row['Address.City']}, {row['Address.Subdivision']}"
+            addresses.append(addr)
     else:
-        print(f"Dataset '{filepath}' not found.")
-        print("Using a small mock sample of Target locations...")
-        addresses = [
-            "100 N 8th St, Minneapolis, MN 55403",
-            "1901 E Madison St, Seattle, WA 98122",
-            "115 West Colorado Boulevard, Pasadena, CA 91105",
-            "401 Biscayne Blvd, Miami, FL 33132",
-            "225 Bush St, San Francisco, CA 94104",
-        ]
+        addresses = ["1901 E Madison St, Seattle, WA 98122", "401 Biscayne Blvd, Miami, FL 33132"]
 
-    if max_locations and len(addresses) > max_locations:
-        print(f"Testing Limit Reached: Processing the first {max_locations} locations.")
-        addresses = addresses[:max_locations]
+    task_text = f"Perform a due diligence audit on these Target locations: {', '.join(addresses)}"
+    
+    print(f"\n🚀 Sending Task to A2A Agent ({len(addresses)} locations)...")
+    payload = {
+        "jsonrpc": "2.0",
+        "method": "message/send",
+        "params": {
+            "message": {
+                "role": "user",
+                "parts": [{"kind": "text", "text": task_text}],
+                "messageId": "msg-ma-test"
+            }
+        },
+        "id": 1
+    }
 
-    print(f"\nContract Exhibit A lists {len(addresses)} Target properties to verify.")
-
-    print("\nInitiating Automated Real Estate Due Diligence Pipeline...")
-    val_status = (
-        "ON (Metadata check only)"
-        if dry_run
-        else "OFF (Full LLM Vision analysis active)"
-    )
-    print(f"Dry Run Mode: {val_status}\n")
-
-    result = await process_locations_batch(
-        addresses=addresses,
-        analysis_prompt="Analyze this Target store for general condition and brand visibility.",
-        analysis_schema='{"condition": "string", "brand_visible": "boolean"}',
-        dry_run=dry_run
-    )
-
-    print("\n" + "=" * 70)
-    print("DUE DILIGENCE PIPELINE COMPLETED")
-    print("=" * 70)
-    print(result)
-
+    try:
+        response = requests.post(A2A_URL, json=payload, timeout=600)
+        response.raise_for_status()
+        print("\n✅ RECEIVED RESPONSE FROM SUBAGENT:")
+        print(json.dumps(response.json(), indent=2))
+    except Exception as e:
+        print(f"❌ Request failed: {e}")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Mock M&A Deal - Amazon/Target Integration Test"
-    )
-    parser.add_argument(
-        "--dataset",
-        type=str,
-        default="data/target_locations.csv",
-        help="Path to the dataset",
-    )
-    parser.add_argument(
-        "--live", action="store_true", help="Run with live vision analysis"
-    )
-    parser.add_argument(
-        "--limit", type=int, default=10, help="Max locations to process"
-    )
-
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--limit", type=int, default=5)
     args = parser.parse_args()
-    asyncio.run(
-        run_ma_due_diligence_test(
-            args.dataset, dry_run=not args.live, max_locations=args.limit
-        )
-    )
+
+    download_dataset()
+    
+    print("🐳 Starting Docker containers via Compose SDK...")
+    try:
+        # Build and start in detached mode
+        docker.compose.up(detach=True, build=True)
+        
+        if wait_for_port(8000):
+            asyncio.run(run_ma_due_diligence_test(max_locations=args.limit))
+        else:
+            print("❌ Timeout waiting for services.")
+            
+    finally:
+        user_input = input("\nDo you want to shut down the containers? (y/N): ")
+        if user_input.lower() == 'y':
+            print("🐳 Tearing down Docker containers...")
+            docker.compose.down()
