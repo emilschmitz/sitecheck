@@ -10,8 +10,10 @@ from mcp.client.sse import sse_client
 
 from a2a_agent.settings import Settings
 from a2a_agent.tools import execute_bash_command
+import logging
 
 settings = Settings()
+logger = logging.getLogger(__name__)
 
 class SiteCheckAgentExecutor(AgentExecutor):
     def __init__(self):
@@ -24,6 +26,10 @@ class SiteCheckAgentExecutor(AgentExecutor):
     async def execute(self, context: RequestContext, event_queue: EventQueue) -> None:
         context_text = self._extract_text(context)
         
+        # Ensure we have a task ID and emit it so clients can resubscribe
+        if context.task:
+            await event_queue.enqueue_event(context.task)
+
         await event_queue.enqueue_event(
             new_agent_text_message("Agent Online. Analyzing context and auditing site condition...")
         )
@@ -34,8 +40,10 @@ class SiteCheckAgentExecutor(AgentExecutor):
         ]
 
         # Multi-step tool loop
-        for _ in range(5):
+        logger.info(f"Agent starting task with extraction model: {self.model}")
+        for step in range(5):
             try:
+                logger.info(f"--- Step {step + 1} / 5 ---")
                 response = await self.client.chat.completions.create(
                     model=self.model,
                     messages=messages,  # type: ignore
@@ -46,7 +54,9 @@ class SiteCheckAgentExecutor(AgentExecutor):
 
                 if choice.tool_calls:
                     for tool_call in choice.tool_calls:
+                        logger.info(f"Tool call requested: {tool_call.function.name} with args: {tool_call.function.arguments}")
                         result = await self._dispatch_tool(tool_call, event_queue)
+                        logger.info(f"Tool execution result: {result[:200]}...") # truncate for logging
                         
                         messages.append({
                             "role": "tool",
@@ -54,11 +64,14 @@ class SiteCheckAgentExecutor(AgentExecutor):
                             "content": result
                         })
                 else:
+                    msg = choice.content or 'Analysis complete.'
+                    logger.info(f"Agent finished analysis. Final output: {msg}")
                     await event_queue.enqueue_event(
-                        new_agent_text_message(f"✅ {choice.content or 'Analysis complete.'}")
+                        new_agent_text_message(f"✅ {msg}")
                     )
                     break
             except Exception as e:
+                logger.error(f"Error in agent step: {str(e)}", exc_info=True)
                 await event_queue.enqueue_event(
                     new_agent_text_message(f"❌ Process Error: {str(e)}")
                 )

@@ -26,11 +26,9 @@ Then, it'll pipe these inputs into our custom MCP, which then runs an analysis o
                          (Relayed)                                (from Tools)
 ```
 
-The Sitecheck MCP server can be used in a standalone fashion, but we can also use an A2A compatible agent as the entrypoint for the site check pipeline. This agent transforms the data into a format compatible with the MCP server and generates a suitable prompt and JSON schema for structured generation as inputs for the MCP. The A2A server is there to be used as a subagent for a main agent instead of using the MCP directly. This spares the main agents context the tokens used for preparing the data and other inputs for the MCP.
+The A2A subagent acts as a bridge, handling the heavy lifting of data preparation and tool orchestration, which saves context and simplifies the main agent's task.
 
-## Get it up and running
-
-### Get it up and running
+## Environment setup
 
 You'll need a GCP API key with the [Street View static API](https://console.cloud.google.com/marketplace/product/google/street-view-image-backend.googleapis.com) enabled.
 
@@ -40,17 +38,17 @@ To get the dataset, you also need the [Kaggle CLI](https://www.kaggle.com/docs/a
 # 1. Setup Env
 cp .env.sample .env # Fill in GCP_API_KEY and OPENROUTER_API_KEY
 
-# 2. Launch Sandbox
+# 2. Launch Services
 docker-compose up
 ```
 
-## Try it out
+## Usage
 
-### Sample M&A dataset
+### (Optional) Sample M&A dataset
 
-First, you need some data.
+First, we'll need some data.
 
-To simulate a real-world M&A due diligence scenario (with 1,781 locations), you can use the [Target Store Dataset from Kaggle](https://www.kaggle.com/datasets/ben1989/target-store-dataset) (You'll need the Kaggle CLI tool, or download through your browser):
+To simulate an M&A due diligence scenario, you can use the [Target Store Dataset from Kaggle](https://www.kaggle.com/datasets/ben1989/target-store-dataset) containing approx. 2000 locations (You'll need the Kaggle CLI tool with an API key, or download through your browser):
 
 ```bash
 # Download and prepare dataset
@@ -73,12 +71,12 @@ The main agent will hopefully know what to do.
 If you are your own main agent, you can also use the A2A manually through curl.
 
 ```bash
-curl -N -X POST http://localhost:8000/ \
+# This will return a Task object with an "id"
+curl -X POST http://localhost:8000/ \
   -H "Content-Type: application/json" \
-  -H "Accept: text/event-stream" \
   -d '{
     "jsonrpc": "2.0",
-    "method": "message/stream",
+    "method": "message/send",
     "params": {
       "message": {
         "role": "user",
@@ -93,9 +91,27 @@ curl -N -X POST http://localhost:8000/ \
   }'
 ```
 
-### Integration test
+#### 2. Track Progress via Stream
 
-If you have are authenticated with kaggle CLI and have set up your API keys, everything is automated in:
+Replace `<TASK_ID>` with the ID returned from the previous step. The ID is the `result.id` if you get a `Task` or the `taskId` if you got a `Message`. The `-N` flag in `curl` ensures that the output is not buffered.
+
+```bash
+curl -N -X POST http://localhost:8000/ \
+  -H "Content-Type: application/json" \
+  -H "Accept: text/event-stream" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "tasks/resubscribe",
+    "params": {
+      "id": "<TASK_ID>"
+    },
+    "id": 2
+  }'
+```
+
+### Integration Test
+
+Run the automated test suite to verify the end-to-end flow:
 
 ```bash
 uv run integration_test_ma_deal.py --env-file local.env

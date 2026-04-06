@@ -1,6 +1,5 @@
 import json
 import os
-import pathlib
 from datetime import datetime
 from typing import Any
 from importlib.metadata import version
@@ -11,7 +10,7 @@ import pandas as pd
 from fastmcp import FastMCP
 from openpyxl.styles import PatternFill
 from tqdm.asyncio import tqdm
-from fastmcp import FastMCP, Context
+from fastmcp import Context
 from mcp_server.utils import check_street_view_metadata, get_google_maps_link, get_street_view_link
 from mcp_server.vision import fetch_street_view_image, analyze_image_with_vision_model
 

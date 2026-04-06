@@ -10,10 +10,17 @@ from a2a.types import AgentCard
 from a2a_agent.agent import SiteCheckAgentExecutor
 
 
+import logging
+
 # Get version from package metadata
 VERSION = version("a2a-sitecheck")
 
 def create_app():
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+
     # Load A2A Metadata
     card_path = pathlib.Path(__file__).parent / "agent_card.json"
     with open(card_path, "r") as f:

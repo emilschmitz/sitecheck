@@ -16,6 +16,7 @@ WORKDIR /app
 COPY --from=builder /app /app
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONPATH="/app/a2a_agent"
+ENV PYTHONUNBUFFERED=1
 EXPOSE 8000
 # Update command to new path
 CMD ["python", "-m", "a2a_agent.server"]
