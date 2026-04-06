@@ -8,6 +8,10 @@ This project was inspired by legal use cases, but may be useful any domain relyi
 
 **Example use:**
 
+
+https://github.com/user-attachments/assets/e4b3ac17-85b1-460b-951a-28e15a0d2330
+
+
 When completing an M&A, lawyers often have to manually review thousands of property locations.
 
 If they are using a legal agent to assist in their work, they can hook it up to our A2A agent and use it as a subagent. The main agent sends our subagent documents containing a set of addresses together with instructions on what to inspect.
