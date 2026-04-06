@@ -1,10 +1,10 @@
 # Site Check Pipeline 🔭
 
-Automated OSINT pipeline containing an A2A-compatible custom agent and an MCP server, inspired by legal use cases.
+Automated OSINT pipeline containing an A2A-compatible custom agent and an MCP server.
 
 ## Motivation
 
-This project was inspired by legal use cases, but may be useful any domain relying on investigative work on Google Maps.
+This project was inspired by legal use cases 🧑‍⚖️ , but may be useful any domain relying on investigative work on Google Maps.
 
 **Example use:**
 
@@ -14,11 +14,11 @@ https://github.com/user-attachments/assets/e4b3ac17-85b1-460b-951a-28e15a0d2330
 
 When completing an M&A, lawyers often have to manually review thousands of property locations.
 
-If they are using a legal agent to assist in their work, they can hook it up to our A2A agent and use it as a subagent. The main agent sends our subagent documents containing a set of addresses together with instructions on what to inspect.
+If a lawyer is using a legal agent to assist in their work, they can hook it up to this A2A agent and use it as a subagent. The main agent can then our subagent documents containing sets of addresses together with instructions on what to inspect.
 
-Our agent will then, either by scripting or manually, transform the data into a suitable format. It'll also create an optimized image-analysis prompt and a JSON schema containing fields for al the requested information. It comes with a pre-configured agent skill for this use case.
+Our agent will then, either by scripting or manually, transform the data into a suitable format. It'll also create an optimized image-analysis prompt and a JSON schema with a field for every requested item of information. It comes with a pre-configured agent skill for the M&A use case.
 
-Then, the agent pipes these inputs into our custom Site Check MCP, which subsequently runs an analysis of all the locations in parallel. It uses Google Maps and Google Street View to obtain a 360-degree view of every site, ensuring the analysis covers both the property and its immediate surroundings. These images are all analyzed by a VLM based on the input prompt. The results are returned in JSON conforming to input schema using structured generation. The MCP then converts the results into human-friendly Excel and machine-readable JSONL format, which the subagent relays back over to the main agent.
+In the next step, the agent pipes these inputs into our custom Sitecheck MCP, which then runs an analysis of all the locations in parallel. It uses Google Maps and Google Street View to obtain a 360-degree view of every site, ensuring the analysis covers both the property and its immediate surroundings. These images are all analyzed by a VLM based on the input prompt. The results are returned in JSON conforming to input schema using structured generation. The MCP then converts the results into human-friendly Excel and machine-readable JSONL format, which the subagent relays back over to the main agent.
 
 ## Architecture & workflow
 
@@ -56,7 +56,7 @@ A dataset of [Target Store locations from Kaggle](https://www.kaggle.com/dataset
 
 ### Environment setup
 
-You'll need a GCP API key with the [Street View static API](https://console.cloud.google.com/marketplace/product/google/street-view-image-backend.googleapis.com) enabled and an API key for an LLM provider (e.g. OpenRouter).
+You'll need a GCP API key with the [Street View static API](https://console.cloud.google.com/marketplace/product/google/street-view-image-backend.googleapis.com) enabled and an API key for an LLM provider (e.g. OpenRouter) to use the pipeline.
 
 Run `cp a2a_agent/.env.sample a2a_agent/.env` and `cp mcp_server/.env.sample mcp_server/.env` and fill in your keys in the `.env` files. You can also specify the `BASE_URL` if you're not using OpenRouter.
 
@@ -71,7 +71,7 @@ If your main agent speaks A2A, it should know what to do.
 
 ### ...or try it out manually via the Interactive Integration Test
 
-If you are your own main agent and would like to use the pipeline manually, the script `integration_test.py` provides an interactive terminal UI for chatting with the agent. It's the best way to verify the pipeline for your use case end-to-end.
+If you are your own main agent and would like to use the pipeline manually, the script `integration_test.py` provides an interactive terminal UI for chatting with the agent. This is the best way to verify the pipeline for your use case end-to-end.
 
 ```bash
 # Run Integration Test
