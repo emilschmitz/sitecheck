@@ -147,14 +147,25 @@ class SiteCheckAgentExecutor(AgentExecutor):
 
         if name == "run_site_check_pipeline":
             num_sites = len(args['addresses'])
-            await event_queue.enqueue_event(new_agent_text_message(f"🚀 Auditing {num_sites} locations..."))
+            await event_queue.enqueue_event(new_agent_text_message(f"🚀 Starting audit of {num_sites} locations..."))
             
             try:
                 async with sse_client(settings.mcp_server_url) as (read_stream, write_stream):
                     async with ClientSession(read_stream, write_stream) as session:
                         await session.initialize()
-                        result = await session.call_tool("process_locations_batch", args)
-                        # MCP tool returns content list
+                        
+                        # Use a progress handler to relay progress to the A2A event queue
+                        async def handle_progress(progress: float, total: float | None = None):
+                            percent = (progress / total * 100) if total else progress
+                            await event_queue.enqueue_event(
+                                new_agent_text_message(f"⏳ Progress: {percent:.1f}% ({int(progress)}/{int(total) if total else '?'})")
+                            )
+
+                        result = await session.call_tool(
+                            "process_locations_batch", 
+                            args,
+                            progress_handler=handle_progress
+                        )
                         return result.content[0].text
             except Exception as e:
                 return f"MCP Network Error: {str(e)}"

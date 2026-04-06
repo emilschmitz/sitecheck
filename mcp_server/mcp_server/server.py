@@ -11,7 +11,7 @@ import pandas as pd
 from fastmcp import FastMCP
 from openpyxl.styles import PatternFill
 from tqdm.asyncio import tqdm
-
+from fastmcp import FastMCP, Context
 from mcp_server.utils import check_street_view_metadata, get_google_maps_link, get_street_view_link
 from mcp_server.vision import fetch_street_view_image, analyze_image_with_vision_model
 
@@ -26,8 +26,10 @@ async def process_single_address(
     address: str, 
     dry_run: bool, 
     analysis_prompt: str, 
-    analysis_schema: str
+    analysis_schema: str,
+    ctx: Context | None = None
 ) -> dict[str, Any]:
+
     result = {
         "Address": address,
         "Status": None,
@@ -88,6 +90,7 @@ async def process_locations_batch(
     analysis_prompt: str,
     analysis_schema: str,
     dry_run: bool = False, 
+    ctx: Context = None
 ) -> str:
     """
     Site Check Pipeline - Processes a batch of structured addresses.
@@ -97,19 +100,26 @@ async def process_locations_batch(
         analysis_prompt: MANDATORY: Custom prompt for the vision model checking the image.
         analysis_schema: MANDATORY: JSON schema string for structured generation.
         dry_run: If True, only checks metadata to save Vision model costs.
+        ctx: MCP Context for progress reporting.
 
     Returns:
         A machine-readable JSON string containing completion status and report paths.
     """
     results = []
+    total = len(addresses)
+    completed = 0
+    
     async with aiohttp.ClientSession() as session:
         tasks = [
-            process_single_address(session, address, dry_run, analysis_prompt, analysis_schema) for address in addresses
+            process_single_address(session, address, dry_run, analysis_prompt, analysis_schema, ctx) for address in addresses
         ]
 
-        for f in tqdm.as_completed(tasks, total=len(addresses), desc="Processing Addresses"):
+        for f in tqdm.as_completed(tasks, total=total, desc="Processing Addresses"):
             res = await f
             results.append(res)
+            completed += 1
+            if ctx:
+                await ctx.report_progress(completed, total)
 
     for res in results:
         if "_image_bytes" in res:

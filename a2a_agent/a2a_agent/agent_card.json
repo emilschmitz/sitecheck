@@ -1,10 +1,11 @@
 {
   "protocol_version": "2024-11-05",
   "name": "SiteCheckSubagent",
-  "description": "OSINT real estate due diligence specialist. Extracts addresses from messy text and performs aerial audits using Google Street View and Vision models.",
+  "description": "A versatile data analysis and automation subagent. Specialized in processing unstructured data, performing file operations, and executing location-based visual audits.",
   "capabilities": {
     "can_receive_files": false,
-    "can_send_files": true
+    "can_send_files": true,
+    "streaming": true
   },
   "default_input_modes": ["text"],
   "default_output_modes": ["text"],

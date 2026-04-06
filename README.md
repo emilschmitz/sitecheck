@@ -73,11 +73,12 @@ The main agent will hopefully know what to do.
 If you are your own main agent, you can also use the A2A manually through curl.
 
 ```bash
-curl -X POST http://localhost:8000/ \
+curl -N -X POST http://localhost:8000/ \
   -H "Content-Type: application/json" \
+  -H "Accept: text/event-stream" \
   -d '{
     "jsonrpc": "2.0",
-    "method": "message/send",
+    "method": "message/stream",
     "params": {
       "message": {
         "role": "user",
