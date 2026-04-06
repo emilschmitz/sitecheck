@@ -30,21 +30,27 @@ import pandas as pd
 import requests
 from python_on_whales import docker
 from kaggle.api.kaggle_api_extended import KaggleApi
+import subprocess
+import datetime
 
 A2A_URL = "http://localhost:8000/"
 
 def wait_for_port(port, host='localhost', timeout=120.0):
-    """Wait until a port is open."""
+    """Wait until the HTTP service is responding."""
     start_time = time.perf_counter()
+    import requests
     while True:
         try:
-            with socket.create_connection((host, port), timeout=1):
+            r = requests.get(f"http://{host}:{port}/docs", timeout=1)
+            if r.status_code:
                 print(f"✅ Service is up on port {port}")
                 return True
-        except (OSError, ConnectionRefusedError):
-            time.sleep(2)
-            if time.perf_counter() - start_time > timeout:
-                return False
+        except requests.exceptions.RequestException:
+            pass
+            
+        time.sleep(2)
+        if time.perf_counter() - start_time > timeout:
+            return False
 
 def download_dataset():
     dataset_path = "data/target_locations.csv"
@@ -79,7 +85,7 @@ def download_dataset():
         print(f"❌ Kaggle API Error: {e}")
         print("Falling back to small mock sample...")
 
-async def run_ma_due_diligence_test(max_locations: int = 5):
+async def run_ma_due_diligence_test(max_locations: int = 50):
     print("=" * 70)
     print("MOCK M&A DEAL: Amazon is acquiring Target")
     print("Legal Due Diligence: Verifying store locations via A2A Subagent")
@@ -128,10 +134,20 @@ if __name__ == "__main__":
 
     download_dataset()
     
+    os.makedirs("logs", exist_ok=True)
+    session_log = f"logs/session_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+    print(f"📝 Logging session to {session_log}")
+    
     print("🐳 Starting Docker containers via Compose SDK...")
     try:
         # Build and start in detached mode
         docker.compose.up(detach=True, build=True)
+        
+        # Start following logs in the background and write to timestamped file while printing them
+        log_process = subprocess.Popen(
+            f"docker compose logs -f 2>&1 | tee {session_log}", 
+            shell=True
+        )
         
         if wait_for_port(8000):
             asyncio.run(run_ma_due_diligence_test(max_locations=args.limit))
@@ -143,3 +159,6 @@ if __name__ == "__main__":
         if user_input.lower() == 'y':
             print("🐳 Tearing down Docker containers...")
             docker.compose.down()
+            
+        if 'log_process' in locals():
+            log_process.terminate()

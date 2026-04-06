@@ -38,6 +38,8 @@ class SiteCheckAgentExecutor(AgentExecutor):
             {"role": "system", "content": self._get_system_prompt()},
             {"role": "user", "content": f"Context: {context_text}"},
         ]
+        
+        logger.info(f"Sending Messages to LLM: {json.dumps(messages, indent=2)}")
 
         # Multi-step tool loop
         logger.info(f"Agent starting task with extraction model: {self.model}")
@@ -83,13 +85,23 @@ class SiteCheckAgentExecutor(AgentExecutor):
 
     def _extract_text(self, context: RequestContext) -> str:
         text = ""
-        if hasattr(context.message, "parts"):
-            for part in context.message.parts:
-                if hasattr(part, "text") and part.text:
-                    text += part.text + "\n"
-        elif hasattr(context.message, "text") and context.message.text:
-            text = context.message.text
-        return text
+        msg = context.message
+        try:
+            # Use model_dump() for robust pydantic serialization
+            msg_dict = msg.model_dump()
+            parts = msg_dict.get("parts", [])
+            for p in parts:
+                if isinstance(p, dict) and p.get("text"):
+                    text += p["text"] + "\n"
+                elif hasattr(p, "text") and p.text:
+                    text += p.text + "\n"
+                    
+            if not text and msg_dict.get("text"):
+                text = msg_dict["text"]
+        except Exception:
+            text = str(msg)
+            
+        return text.strip()
 
     def _get_system_prompt(self) -> str:
         return (
@@ -168,19 +180,25 @@ class SiteCheckAgentExecutor(AgentExecutor):
                         await session.initialize()
                         
                         # Use a progress handler to relay progress to the A2A event queue
-                        async def handle_progress(progress: float, total: float | None = None):
-                            percent = (progress / total * 100) if total else progress
-                            await event_queue.enqueue_event(
-                                new_agent_text_message(f"⏳ Progress: {percent:.1f}% ({int(progress)}/{int(total) if total else '?'})")
-                            )
+                        async def handle_progress(*args, **kwargs):
+                            progress = args[0] if len(args) > 0 else kwargs.get("progress", 0)
+                            total = args[1] if len(args) > 1 else kwargs.get("total", None)
+                            if progress is not None:
+                                percent = (progress / total * 100) if total else progress
+                                await event_queue.enqueue_event(
+                                    new_agent_text_message(f"⏳ Progress: {percent:.1f}% ({int(progress)}/{int(total) if total else '?'})")
+                                )
 
                         result = await session.call_tool(
                             "process_locations_batch", 
                             args,
-                            progress_handler=handle_progress
+                            progress_callback=handle_progress
                         )
                         return result.content[0].text
             except Exception as e:
+                import traceback
+                error_details = traceback.format_exc()
+                logger.error(f"MCP Network Error Detailed:\n{error_details}")
                 return f"MCP Network Error: {str(e)}"
         
         return f"Unknown tool: {name}"

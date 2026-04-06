@@ -26,4 +26,4 @@ services:
     volumes:
       - ./data:/app/data
       - ./mcp_server:/app/mcp_server
-    command: ["fastmcp", "run", "mcp_server/mcp_server/server.py", "--transport", "sse", "--port", "8001", "--reload"]
+    command: ["fastmcp", "run", "mcp_server/mcp_server/server.py", "--transport", "sse", "--port", "8001", "--host", "0.0.0.0", "--reload"]
