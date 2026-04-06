@@ -1,7 +1,7 @@
 import pathlib
-import tomllib
 import json
 import uvicorn
+from importlib.metadata import version
 from a2a.server.apps.jsonrpc.fastapi_app import A2AFastAPIApplication
 from a2a.server.request_handlers.default_request_handler import DefaultRequestHandler
 from a2a.server.tasks.inmemory_task_store import InMemoryTaskStore
@@ -9,12 +9,14 @@ from a2a.types import AgentCard
 
 from a2a_agent.agent import SiteCheckAgentExecutor
 
-# Get version directly from pyproject.toml
-VERSION = tomllib.loads((pathlib.Path(__file__).parent / "pyproject.toml").read_text())["project"]["version"]
+
+# Get version from package metadata
+VERSION = version("a2a-sitecheck")
 
 def create_app():
     # Load A2A Metadata
-    with open("a2a_agent/agent_card.json", "r") as f:
+    card_path = "agent_card.json"
+    with open(card_path, "r") as f:
         card_data = json.load(f)
     
     # Inject dynamic fields

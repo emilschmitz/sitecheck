@@ -32,7 +32,6 @@ The MCP server can be used in a standalone fashion, but we use an A2A compatible
 
 ## Get it up and running
 
-
 ### Get it up and running
 
 You'll need a GCP API key with the [Street View static API](https://console.cloud.google.com/marketplace/product/google/street-view-image-backend.googleapis.com) enabled.
@@ -49,13 +48,6 @@ docker-compose up
 
 ## Try it out
 
-### Integration test
-
-Everything except preparing the API keys is automated in:
-
-```bash
-uv run integration_test_ma_deal.py --env-file local.env
-```
 
 ### Sample M&A dataset
 
@@ -101,4 +93,12 @@ curl -X POST http://localhost:8000/ \
     },
     "id": 1
   }'
+```
+
+### Integration test
+
+If you have are authenticated with kaggle CLI and have set up your API keys, everything is automated in:
+
+```bash
+uv run integration_test_ma_deal.py --env-file local.env
 ```

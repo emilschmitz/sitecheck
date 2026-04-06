@@ -1,9 +1,9 @@
 import json
 import os
 import pathlib
-import tomllib
 from datetime import datetime
 from typing import Any
+from importlib.metadata import version
 
 import aiohttp
 import openpyxl
@@ -15,8 +15,8 @@ from tqdm.asyncio import tqdm
 from mcp_server.utils import check_street_view_metadata, get_google_maps_link, get_street_view_link
 from mcp_server.vision import fetch_street_view_image, analyze_image_with_vision_model
 
-# Get version directly from pyproject.toml
-VERSION = tomllib.loads((pathlib.Path(__file__).parent / "pyproject.toml").read_text())["project"]["version"]
+# Get version from package metadata
+VERSION = version("mcp-sitecheck")
 
 # Initialize MCP
 mcp = FastMCP("Site Check Pipeline", version=VERSION)

@@ -2,8 +2,8 @@ services:
   # The A2A Subagent Service
   a2a:
     build: 
-      context: ./a2a_agent
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: a2a_agent/Dockerfile
     ports:
       - "8000:8000"
     environment:
@@ -16,8 +16,8 @@ services:
   # The MCP Server (Standalone)
   mcp:
     build:
-      context: ./mcp_server
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: mcp_server/Dockerfile
     ports:
       - "8001:8001"
     environment:
