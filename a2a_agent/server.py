@@ -1,28 +1,17 @@
+import json
 import uvicorn
 from a2a.server.apps.jsonrpc.fastapi_app import A2AFastAPIApplication
 from a2a.server.request_handlers.default_request_handler import DefaultRequestHandler
 from a2a.server.tasks.inmemory_task_store import InMemoryTaskStore
-from a2a.types import AgentCapabilities, AgentCard, AgentSkill
+from a2a.types import AgentCard
 
 from a2a_agent.agent import SiteCheckAgentExecutor
 
 def create_app():
-    # A2A Metadata
-    agent_card = AgentCard(
-        protocol_version="2024-11-05",
-        name="SiteCheckSubagent",
-        description="OSINT real estate due diligence specialist.",
-        capabilities=AgentCapabilities(),
-        default_input_modes=["text"],
-        default_output_modes=["text"],
-        skills=[
-            AgentSkill(
-                id="site-audit",
-                name="site_audit",
-                description="Audits physical property conditions from unstructured text.",
-            )
-        ],
-    )
+    # Load A2A Metadata
+    with open("a2a_agent/agent_card.json", "r") as f:
+        card_data = json.load(f)
+    agent_card = AgentCard(**card_data)
 
     # Setup Executor & Handlers
     executor = SiteCheckAgentExecutor()

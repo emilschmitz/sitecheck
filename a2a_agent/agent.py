@@ -45,6 +45,10 @@ class SiteCheckAgentExecutor(AgentExecutor):
                 if choice.tool_calls:
                     for tool_call in choice.tool_calls:
                         result = await self._dispatch_tool(tool_call, event_queue)
+                        # Relay the direct MCP response as the final step if it was the pipeline
+                        if tool_call.function.name == "run_site_check_pipeline":
+                            await event_queue.enqueue_event(new_agent_text_message(result))
+                        
                         messages.append({
                             "role": "tool",
                             "tool_call_id": tool_call.id,

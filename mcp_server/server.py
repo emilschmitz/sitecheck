@@ -149,7 +149,7 @@ async def process_locations_batch(
     # Save outputs
     os.makedirs("data", exist_ok=True)
     excel_file = "data/site_check_report.xlsx"
-    csv_file = "data/site_check_report.csv"
+    jsonl_file = "data/site_check_report.jsonl"
     
     df.to_excel(excel_file, index=False)
     
@@ -166,21 +166,32 @@ async def process_locations_batch(
                 for row_idx in range(2, ws.max_row + 1):
                     cell = ws.cell(row=row_idx, column=col_idx)
                     if cell.value:
-                        cell.value = f'=HYPERLINK("{cell.value}", "Click to View")'
+                        # Simple check for existing hyperlink formula to avoid double nesting
+                        if not str(cell.value).startswith('=HYPERLINK'):
+                            cell.value = f'=HYPERLINK("{cell.value}", "Click to View")'
                         cell.style = "Hyperlink"
 
-        # Apply Aging Colors
-        if "Image_Age" in col_names and "Image_Age_Months" in col_names:
-            age_col_idx = col_names.index("Image_Age") + 1
+        # Apply Aging Colors (Row-wide)
+        if "Image_Age_Months" in col_names:
             months_col_idx = col_names.index("Image_Age_Months") + 1
             for row_idx in range(2, ws.max_row + 1):
                 months_val = ws.cell(row=row_idx, column=months_col_idx).value
                 if months_val is not None:
-                    m = min(int(months_val), 120)
-                    r = int((m / 60) * 255) if m < 60 else 255
-                    g = 255 if m < 60 else int(255 - ((m - 60) / 60) * 200)
-                    hex_color = f"FF{r:02X}{g:02X}00"
-                    ws.cell(row=row_idx, column=age_col_idx).fill = PatternFill(start_color=hex_color, end_color=hex_color, fill_type="solid")
+                    m = int(months_val)
+                    if m >= 12:
+                        # 1 year or older: Red
+                        hex_color = "FFFF0000"
+                    else:
+                        # 0-11 months: Gradual Green to Red
+                        # 0 months -> Green (00FF00)
+                        # 11 months -> Almost Red
+                        r = int((m / 11) * 255)
+                        g = int(255 - (m / 11) * 255)
+                        hex_color = f"FF{r:02X}{g:02X}00"
+                    
+                    fill = PatternFill(start_color=hex_color, end_color=hex_color, fill_type="solid")
+                    for col_idx in range(1, len(col_names) + 1):
+                        ws.cell(row=row_idx, column=col_idx).fill = fill
 
         # Delete helper column
         if "Image_Age_Months" in col_names:
@@ -190,14 +201,14 @@ async def process_locations_batch(
     except Exception as e:
         print(f"Excel formatting failed: {e}")
 
-    df.drop(columns=["Image_Age_Months"], errors="ignore").to_csv(csv_file, index=False)
+    df.drop(columns=["Image_Age_Months"], errors="ignore").to_json(jsonl_file, orient="records", lines=True)
 
     return json.dumps({
         "status": "completed",
         "count": len(addresses),
         "files": {
             "excel": os.path.abspath(excel_file),
-            "csv": os.path.abspath(csv_file)
+            "jsonl": os.path.abspath(jsonl_file)
         }
     }, indent=2)
 
