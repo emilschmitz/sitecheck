@@ -24,11 +24,7 @@ This is a demo for how A2A can be used to integrate OSINT data processing into l
                                         └────────────────┘
 ```
 
-1. **Extraction**: The **Main Agent** sends a messy legal contract or text dump to the **Subagent** via the A2A Protocol with a task to execute.
-2. **Standardization**: The Subagent (LLM-powered) extracts structured addresses and parameters, using the Bash MCP for any necessary file manipulation or script execution.
-3. **Execution**: The Subagent invokes the **Site Check MCP** tool with the clean address list.
-4. **Data Pipeline**: The MCP Server runs a parallelized audit, generating a professional Excel report (`.xlsx`) with aging heatmaps and keyless 360° pano links, alongside a clean CSV (`.csv`) for database ingestion.
-5. **Output**: The Subagent returns a JSON payload containing absolute paths to the generated reports stored in the shared `/data` volume.
+We use an A2A compatible agent as the entrypoint for the site check pipeline. This agent transforms the data into a format compatible with the MCP server and generates a suitable prompt and JSON schema for structured generation as inputs for the MCP. The A2A server can be used as a subagent for a main agent instead of using the MCP directly. This spares the main a  gents context from the tokens used for preparing the data and other inputs for the MCP.
 
 ## 🚀 Quick Start (Sandboxed)
 

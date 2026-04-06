@@ -1,7 +1,7 @@
 [project]
 name = "sitecheck-mcp"
 version = "0.1.0"
-description = "OSINT-driven real estate due diligence pipeline using A2A and MCP."
+description = "OSINT-driven real estate due diligence pipeline using MCP."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

@@ -21,9 +21,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=builder /app /app
 ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONPATH="/app"
 
 # Ensure data directory exists
 RUN mkdir -p data
 
-# Default command (overridden in compose)
-CMD ["python", "mcp_server.py"]
+# Run as a module
+CMD ["python", "-m", "mcp_server.server"]

@@ -2,7 +2,6 @@ services:
   # The Real Estate Due Diligence MCP Server
   mcp-sitecheck:
     build: .
-    command: ["python", "mcp_server.py"]
     environment:
       - GCP_API_KEY=${GCP_API_KEY}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
@@ -10,10 +9,10 @@ services:
     volumes:
       - ./data:/app/data
 
-  # The A2A Subagent Server (Networked)
-  a2a-server:
+  # The A2A Subagent Service (Self-contained Bash + SiteCheck)
+  a2a-agent:
     build: .
-    command: ["python", "a2a_server.py"]
+    command: ["python", "-m", "a2a_agent.server"]
     ports:
       - "8000:8000"
     environment:
@@ -23,13 +22,4 @@ services:
     depends_on:
       - mcp-sitecheck
     volumes:
-      - ./data:/app/data
-
-  # A dedicated Bash MCP Server for terminal access
-  mcp-bash:
-    build: .
-    command: ["python", "bash_mcp.py"]
-    volumes:
       - .:/app
-    environment:
-      - PYTHONPATH=/app
