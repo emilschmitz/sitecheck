@@ -1,5 +1,5 @@
 [project]
-name = "sitecheck-mcp"
+name = "sitecheck-pipeline"
 version = "0.1.0"
 description = "Site Check Pipeline Workspace"
 readme = "README.md"
