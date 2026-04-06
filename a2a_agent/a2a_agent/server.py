@@ -1,21 +1,24 @@
 import pathlib
 import json
 import uvicorn
+import logging
 from a2a.server.apps.jsonrpc.fastapi_app import A2AFastAPIApplication
 from a2a.server.request_handlers.default_request_handler import DefaultRequestHandler
 from a2a.server.tasks.inmemory_task_store import InMemoryTaskStore
 from a2a.types import AgentCard
 
 from a2a_agent.agent import SiteCheckAgentExecutor
-
-
-import logging
+from a2a_agent.settings import Settings
 
 def create_app():
+    settings = Settings()
+    
     logging.basicConfig(
-        level=logging.INFO,
+        level=settings.log_level,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
+    logger = logging.getLogger(__name__)
+    logger.info(f"Starting A2A Agent with Log Level: {settings.log_level}")
 
     # Load A2A Metadata
     card_path = pathlib.Path(__file__).parent / "agent_card.json"

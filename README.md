@@ -14,7 +14,7 @@ If they are using a legal agent to assist in their work, they can hook it up to 
 
 Our agent will then, either by scripting or manually, transform the data into a suitable format. It'll also create an optimized image-analysis prompt and a JSON schema containing fields for al the requested information. It comes with a pre-configured agent skill for this use case.
 
-Then, the agent pipes these inputs into our custom Site Check MCP, which subsequently runs an analysis of all the locations in parallel. It uses Google Maps and Google Street View to obtain images of every site. These images are all analyzed by a VLM based on the input prompt. The results are returned in JSON conforming to input schema using structured generation. The MCP then converts the results into human-friendly Excel and machine-readable JSONL format, which the subagent relays back over to the main agent.
+Then, the agent pipes these inputs into our custom Site Check MCP, which subsequently runs an analysis of all the locations in parallel. It uses Google Maps and Google Street View to obtain a 360-degree view of every site, ensuring the analysis covers both the property and its immediate surroundings. These images are all analyzed by a VLM based on the input prompt. The results are returned in JSON conforming to input schema using structured generation. The MCP then converts the results into human-friendly Excel and machine-readable JSONL format, which the subagent relays back over to the main agent.
 
 ## Architecture & workflow
 
@@ -57,45 +57,29 @@ The main agent will hopefully know what to do.
 
 ### ...or manually trigger the audit via A2A over curl
 
-If you are your own main agent, you can also use the A2A manually through curl.
+You can trigger the entire pipeline by sending a natural language request to the A2A agent. The agent will use its tools to find the dataset, filter it (e.g., by state), and then run the site audit with real-time feedback.
+
+#### One-Step Streaming Audit (Clean Terminal Demo)
+
+This command pipes the stream into `jq` to show only the agent's real-time updates (like the spinner and progress bars) on a single line.
 
 ```bash
-# This will return a Task object with an "id"
-curl -X POST http://localhost:8000/ \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "method": "message/send",
-    "params": {
-      "message": {
-        "role": "user",
-        "parts": [{
-          "kind": "text",
-          "text": "Please read data/sample_contract.txt, filter for all properties in California, and run an audit on those locations to check if there are any obvious signs of exterior damage. Provide a brief summary of the audit results and the generated files when you are done."
-        }],
-        "messageId": "msg-001"
-      }
-    },
-    "id": 1
-  }'
-```
-
-#### 2. Track Progress via Stream
-
-Replace `<TASK_ID>` with the ID returned from the previous step. The ID is the `result.id` if you get a `Task` or the `taskId` if you got a `Message`. The `-N` flag in `curl` ensures that the output is not buffered.
-
-```bash
-curl -N -X POST http://localhost:8000/ \
+curl -sN -X POST http://localhost:8000/ \
   -H "Content-Type: application/json" \
   -H "Accept: text/event-stream" \
   -d '{
     "jsonrpc": "2.0",
-    "method": "tasks/resubscribe",
+    "method": "message/stream",
     "params": {
-      "id": "<TASK_ID>"
+      "message": {
+        "role": "user",
+        "parts": [{"kind": "text", "text": "Read data/target_locations.csv. Filter for properties in CA. Run an audit on those locations."
+        }],
+        "message_id": "msg-001"
+      }
     },
-    "id": 2
-  }'
+    "id": 1
+  }' | sed -u 's/^data: //g' | jq -rj --unbuffered '.params | (.. | .text? // empty)'
 ```
 
 ### Integration Test

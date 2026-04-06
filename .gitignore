@@ -1,4 +1,5 @@
-.env
+*.env
+!.env.sample
 *.csv
 __pycache__
 .venv
@@ -7,3 +8,4 @@ __pycache__
 /output/
 *.xlsx
 !data/target_locations.csv
+.ruff_cache/

@@ -5,12 +5,10 @@ services:
       dockerfile: a2a_agent/Dockerfile
     ports:
       - "8000:8000"
-    environment:
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - EXTRACTION_MODEL=${EXTRACTION_MODEL}
-      - MCP_SERVER_URL=http://mcp:8001/sse
+    env_file:
+      - a2a_agent/.env
     volumes:
-      - ./data:/app/data
+      - ./data:/app/data:ro
       - ./output:/app/output
       - ./a2a_agent:/app/a2a_agent
     command: ["uvicorn", "a2a_agent.server:app", "--host", "0.0.0.0", "--reload"]
@@ -20,12 +18,11 @@ services:
       dockerfile: mcp_server/Dockerfile
     ports:
       - "8001:8001"
-    environment:
-      - GCP_API_KEY=${GCP_API_KEY}
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - VISION_MODEL=${VISION_MODEL}
+    env_file:
+      - mcp_server/.env
     volumes:
-      - ./data:/app/data
+      - ./data:/app/data:ro
       - ./output:/app/output
       - ./mcp_server:/app/mcp_server
+      - ./mcp_server/.env:/app/.env
     command: ["fastmcp", "run", "mcp_server/mcp_server/server.py", "--transport", "sse", "--port", "8001", "--host", "0.0.0.0", "--reload"]

@@ -13,7 +13,7 @@ openai_client = AsyncOpenAI(
 )
 
 async def fetch_street_view_image(
-    session: aiohttp.ClientSession, address: str
+    session: aiohttp.ClientSession, address: str, heading: int = 0
 ) -> bytes | None:
     url = "https://maps.googleapis.com/maps/api/streetview"
     params = {
@@ -22,6 +22,7 @@ async def fetch_street_view_image(
         "key": settings.gcp_api_key.get_secret_value(),
         "source": "outdoor",
         "return_error_code": "true",
+        "heading": heading,
     }
     async with session.get(url, params=params) as response:
         if response.status == 200:
@@ -29,12 +30,22 @@ async def fetch_street_view_image(
         return None
 
 async def analyze_image_with_vision_model(
-    image_bytes: bytes, address: str, analysis_prompt: str, analysis_schema: str
+    images: list[dict[str, Any]], address: str, analysis_prompt: str, analysis_schema: str
 ) -> dict[str, Any]:
-    base64_image = base64.b64encode(image_bytes).decode("utf-8")
+    content = [{"type": "text", "text": f"Analyze these {len(images)} images of {address} from different angles (360 view).\n{analysis_prompt}\n\nReturn ONLY valid JSON that strictly follows this schema: {analysis_schema}"}]
     
-    # Combined prompt with schema requirement
-    full_prompt = f"{analysis_prompt}\n\nReturn ONLY valid JSON that strictly follows this schema: {analysis_schema}"
+    for img in images:
+        base64_image = base64.b64encode(img["bytes"]).decode("utf-8")
+        content.append({
+            "type": "text",
+            "text": f"Image heading: {img['heading']} degrees"
+        })
+        content.append({
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:image/jpeg;base64,{base64_image}"
+            },
+        })
 
     try:
         response = await openai_client.chat.completions.create(
@@ -42,15 +53,7 @@ async def analyze_image_with_vision_model(
             messages=[
                 {
                     "role": "user",
-                    "content": [
-                        {"type": "text", "text": full_prompt},
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{base64_image}"
-                            },
-                        },
-                    ],
+                    "content": content,
                 }
             ],
             response_format={"type": "json_object"},

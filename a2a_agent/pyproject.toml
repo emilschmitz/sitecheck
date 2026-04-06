@@ -21,4 +21,4 @@ build-backend = "uv_build"
 [tool.uv.build-backend]
 module-name = "a2a_agent"
 module-root = "."
-include = ["a2a_agent/*.py", "a2a_agent/agent_card.json"]
+include = ["a2a_agent/*.py", "a2a_agent/agent_card.json", "a2a_agent/skills/*.md"]

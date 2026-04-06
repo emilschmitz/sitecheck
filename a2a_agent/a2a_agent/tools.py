@@ -7,6 +7,7 @@ async def execute_bash_command(command: str) -> str:
             ["bash", "-c", command],
             capture_output=True,
             text=True,
+            errors="replace",
             timeout=60
         )
         output = []

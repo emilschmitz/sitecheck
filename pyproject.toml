@@ -9,3 +9,9 @@ dependencies = []
 [tool.uv]
 workspace = { members = ["a2a_agent", "mcp_server"] }
 managed = true
+
+[dependency-groups]
+dev = [
+    "ruff==0.15.9",
+    "ty==0.0.28",
+]

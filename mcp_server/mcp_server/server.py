@@ -1,5 +1,7 @@
+import asyncio
 import json
 import os
+import logging
 from datetime import datetime
 from typing import Any
 from importlib.metadata import version
@@ -11,8 +13,20 @@ from fastmcp import FastMCP
 from openpyxl.styles import PatternFill
 from tqdm.asyncio import tqdm
 from fastmcp import Context
-from mcp_server.utils import check_street_view_metadata, get_google_maps_link, get_street_view_link
+from mcp_server.utils import check_street_view_metadata, get_google_maps_link, get_street_view_link, get_cardinal_direction
 from mcp_server.vision import fetch_street_view_image, analyze_image_with_vision_model
+from mcp_server.settings import Settings
+
+# Initialize Settings
+settings = Settings()
+
+# Configure Logging
+logging.basicConfig(
+    level=settings.log_level,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
+logger.info(f"Starting MCP Server with Log Level: {settings.log_level}")
 
 # Get version from package metadata
 VERSION = version("mcp-sitecheck")
@@ -34,9 +48,8 @@ async def process_single_address(
         "Status": None,
         "Google_Maps_Link": get_google_maps_link(address),
         "Image_Date": None,
-        "Street_View_Link": None,
         "Error": None,
-        "_image_bytes": None,
+        "_images": [],
     }
 
     # Check Metadata
@@ -47,12 +60,20 @@ async def process_single_address(
         
         # Always include date and link if available
         result["Image_Date"] = metadata.get("date")
-        result["Street_View_Link"] = get_street_view_link(metadata)
 
         if status != "OK":
             error_msg = metadata.get("error_message", "No imagery available at this location.")
             result["Error"] = f"Google API: {status}. {error_msg}"
             return result
+        
+        # Dynamic Street View Links by Direction
+        num_images = settings.street_view_image_count
+        headings = [int(i * 360 / num_images) for i in range(num_images)]
+        
+        for heading in headings:
+            cardinal = get_cardinal_direction(heading)
+            col_name = f"Street_View_{cardinal}_{heading}deg"
+            result[col_name] = get_street_view_link(metadata, heading=heading)
 
         if dry_run:
             return result
@@ -60,20 +81,25 @@ async def process_single_address(
         result["Error"] = f"Metadata check failed: {e}"
         return result
 
-    # Fetch Image
+    # Fetch Images (360 view) in parallel
     try:
-        image_bytes = await fetch_street_view_image(session, address)
-        if not image_bytes:
-            result["Error"] = "Failed to fetch image bytes"
+        image_tasks = [fetch_street_view_image(session, address, heading=h) for h in headings]
+        image_responses = await asyncio.gather(*image_tasks)
+        
+        for heading, image_bytes in zip(headings, image_responses):
+            if image_bytes:
+                result["_images"].append({"bytes": image_bytes, "heading": heading})
+        
+        if not result["_images"]:
+            result["Error"] = "Failed to fetch any image bytes"
             return result
-        result["_image_bytes"] = image_bytes
     except Exception as e:
         result["Error"] = f"Image fetch failed: {e}"
         return result
 
     # Vision Analysis
     try:
-        analysis = await analyze_image_with_vision_model(image_bytes, address, analysis_prompt, analysis_schema)
+        analysis = await analyze_image_with_vision_model(result["_images"], address, analysis_prompt, analysis_schema)
         if "error" in analysis:
             result["Error"] = analysis["error"]
         else:
@@ -89,16 +115,18 @@ async def process_locations_batch(
     analysis_prompt: str,
     analysis_schema: str,
     dry_run: bool = False, 
+    output_dir: str = "output",
     ctx: Context = None
 ) -> str:
     """
-    Site Check Pipeline - Processes a batch of structured addresses.
+    Site Check Pipeline - Processes a batch of structured addresses with 360-degree vision audit.
 
     Args:
         addresses: A clean, structured list of address strings to process.
-        analysis_prompt: MANDATORY: Custom prompt for the vision model checking the image.
+        analysis_prompt: MANDATORY: A detailed description of what to look for in the images.
         analysis_schema: MANDATORY: JSON schema string for structured generation.
         dry_run: If True, only checks metadata to save Vision model costs.
+        output_dir: The directory where the results will be saved.
         ctx: MCP Context for progress reporting.
 
     Returns:
@@ -108,21 +136,22 @@ async def process_locations_batch(
     total = len(addresses)
     completed = 0
     
-    async with aiohttp.ClientSession() as session:
-        tasks = [
-            process_single_address(session, address, dry_run, analysis_prompt, analysis_schema, ctx) for address in addresses
-        ]
+    # Process batch in parallel without restrictions for maximum speed
+    async def wrapped_process(session, address):
+        nonlocal completed
+        res = await process_single_address(session, address, dry_run, analysis_prompt, analysis_schema, ctx)
+        completed += 1
+        if ctx:
+            await ctx.report_progress(completed, total)
+        return res
 
-        for f in tqdm.as_completed(tasks, total=total, desc="Processing Addresses"):
-            res = await f
-            results.append(res)
-            completed += 1
-            if ctx:
-                await ctx.report_progress(completed, total)
+    async with aiohttp.ClientSession() as session:
+        tasks = [wrapped_process(session, addr) for addr in addresses]
+        results = await asyncio.gather(*tasks)
 
     for res in results:
-        if "_image_bytes" in res:
-            del res["_image_bytes"]
+        if "_images" in res:
+            del res["_images"]
 
     df = pd.DataFrame(results)
     
@@ -161,9 +190,9 @@ async def process_locations_batch(
     df["Image_Age_Months"] = age_months_list
 
     # Save outputs
-    os.makedirs("output", exist_ok=True)
-    excel_file = "output/site_check_report.xlsx"
-    jsonl_file = "output/site_check_report.jsonl"
+    os.makedirs(output_dir, exist_ok=True)
+    excel_file = os.path.join(output_dir, "site_check_report.xlsx")
+    jsonl_file = os.path.join(output_dir, "site_check_report.jsonl")
     
     df.to_excel(excel_file, index=False)
     
@@ -174,8 +203,8 @@ async def process_locations_batch(
         col_names = [cell.value for cell in ws[1]] if ws else []
         
         # Format Hyperlinks
-        for col_name in ["Google_Maps_Link", "Street_View_Link"]:
-            if col_name in col_names:
+        for col_name in col_names:
+            if col_name == "Google_Maps_Link" or col_name.startswith("Street_View_"):
                 col_idx = col_names.index(col_name) + 1
                 for row_idx in range(2, ws.max_row + 1):
                     cell = ws.cell(row=row_idx, column=col_idx)
@@ -222,8 +251,8 @@ async def process_locations_batch(
         "status": "completed",
         "count": len(addresses),
         "files": {
-            "excel": os.path.abspath(excel_file),
-            "jsonl": os.path.abspath(jsonl_file)
+            "excel": excel_file,
+            "jsonl": jsonl_file
         }
     }, indent=2)
 
