@@ -180,9 +180,10 @@ async def process_locations_batch(
                 for row_idx in range(2, ws.max_row + 1):
                     cell = ws.cell(row=row_idx, column=col_idx)
                     if cell.value:
-                        # Simple check for existing hyperlink formula to avoid double nesting
-                        if not str(cell.value).startswith('=HYPERLINK'):
-                            cell.value = f'=HYPERLINK("{cell.value}", "Click to View")'
+                        url = str(cell.value)
+                        if url and not url.startswith('=HYPERLINK'):
+                            cell.hyperlink = url
+                            cell.value = url
                         cell.style = "Hyperlink"
 
         # Apply Aging Colors (Row-wide)
