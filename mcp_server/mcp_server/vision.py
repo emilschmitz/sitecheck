@@ -17,20 +17,20 @@ openai_client = AsyncOpenAI(
 
 async def fetch_street_view_image(
     session: aiohttp.ClientSession, address: str, heading: int = 0
-) -> bytes | None:
+) -> tuple[bytes | None, int]:
     url = "https://maps.googleapis.com/maps/api/streetview"
     params = {
-        "size": "600x600",
+        "size": "400x400",
         "location": address,
         "key": settings.gcp_api_key.get_secret_value(),
-        "source": "outdoor",
         "return_error_code": "true",
         "heading": heading,
     }
     async with session.get(url, params=params) as response:
         if response.status == 200:
-            return await response.read()
-        return None
+            return await response.read(), 200
+        logger.warning(f"Street View image fetch failed for {address} (heading {heading}): {response.status}")
+        return None, response.status
 
 async def analyze_image_with_vision_model(
     images: list[dict[str, Any]], address: str, analysis_prompt: str, analysis_schema: str, output_dir: str = None
@@ -124,7 +124,16 @@ async def analyze_image_with_vision_model(
         if content.strip().startswith("<!DOCTYPE html>"):
             return make_error_result("Vision analysis failed: API provider returned an HTML error page (likely 502/504)")
             
-        result_data = json.loads(content)
+        try:
+            result_data = json.loads(content)
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse vision response as JSON: {e}. Content: {content[:100]}")
+            return make_error_result(f"Failed to parse vision response as JSON: {e}")
+
+        # Ensure result_data is a dict before proceeding
+        if not isinstance(result_data, dict):
+            logger.warning(f"Vision response for {address} was not a dictionary: {type(result_data)}. Resetting to empty dict.")
+            result_data = {}
         
         # Validation Logic
         validation_error = False
@@ -135,10 +144,6 @@ async def analyze_image_with_vision_model(
                 logger.warning(f"Validation failed for {address}: {ve.message}")
                 validation_error = True
                 
-                # Ensure result_data is a dict for property filling
-                if not isinstance(result_data, dict):
-                    result_data = {}
-
                 # Fill missing or invalid fields with "N/A"
                 properties = schema_dict.get("properties", {})
                 for prop, prop_schema in properties.items():

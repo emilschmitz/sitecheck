@@ -33,7 +33,7 @@ The A2A subagent acts as a bridge, handling the heavy lifting of data preparatio
 
 ### Sample M&A dataset
 
-The [Target Store Dataset from Kaggle](https://www.kaggle.com/datasets/ben1989/target-store-dataset) containing approx. 2000 locations is included in this repository at `data/target_locations.csv` for demonstration purposes.
+A dataset of [Target Store locations from Kaggle](https://www.kaggle.com/datasets/ben1989/target-store-dataset) is included in this repository at `data/target_locations.csv` for demonstration purposes.
 
 ### Environment setup
 

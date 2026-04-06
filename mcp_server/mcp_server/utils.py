@@ -11,6 +11,10 @@ async def check_street_view_metadata(
     url = "https://maps.googleapis.com/maps/api/streetview/metadata"
     params = {"location": address, "key": settings.gcp_api_key.get_secret_value()}
     async with session.get(url, params=params) as response:
+        if response.status != 200:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Street View metadata check failed for {address}: {response.status}")
         return await response.json()
 
 def get_google_maps_link(address: str) -> str:

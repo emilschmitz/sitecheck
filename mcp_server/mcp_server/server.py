@@ -117,14 +117,20 @@ async def process_single_address(
     # Fetch Images (360 view) in parallel
     try:
         image_tasks = [fetch_street_view_image(session, address, heading=h) for h in headings]
-        image_responses = await asyncio.gather(*image_tasks)
+        responses = await asyncio.gather(*image_tasks)
         
-        for heading, image_bytes in zip(headings, image_responses):
+        error_statuses = set()
+        for heading, (image_bytes, status) in zip(headings, responses):
             if image_bytes:
                 result["_images"].append({"bytes": image_bytes, "heading": heading})
+            else:
+                error_statuses.add(status)
         
         if not result["_images"]:
-            result["Error"] = "Failed to fetch any image bytes"
+            status_summary = ", ".join(str(s) for s in sorted(error_statuses))
+            result["Error"] = f"Failed to fetch any image bytes (GMaps Status: {status_summary})"
+            if ctx:
+                await ctx.info(f"⚠️ Image fetch failed for {address}: {status_summary}")
             return result
     except Exception as e:
         result["Error"] = f"Image fetch failed: {e}"

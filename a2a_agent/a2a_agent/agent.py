@@ -132,9 +132,15 @@ class AnimatedStatus:
 
 class SiteCheckAgentExecutor(AgentExecutor):
     def __init__(self):
+        # Initialize client with prompt caching headers for Arcee and Anthropic models
+        # This is supported by OpenRouter.
         self.client = AsyncOpenAI(
             base_url=str(settings.llm_base_url),
             api_key=settings.llm_api_key.get_secret_value(),
+            default_headers={
+                "X-Arcee-Cache-Control": "true",
+                "anthropic-beta": "prompt-caching-2024-07-31"
+            }
         )
         self.model = settings.extraction_model
         # Map request_id to a cancellation event
@@ -361,14 +367,19 @@ class SiteCheckAgentExecutor(AgentExecutor):
             "2. DATA DISCOVERY: Always check the `data/` directory and the user context for input files (CSV, JSON, txt). Use `ls data/` or `find` to discover available datasets if not explicitly provided.\n"
             "3. READ SKILLS FIRST: Always begin by reading the relevant skill file (e.g., in `a2a_agent/a2a_agent/skills/`) to understand your specific execution mandates.\n"
             "4. ZERO TRUNCATION: Process ALL data points. If there are 1000 records, you must handle them all. The `sitecheck_mcp` tool is optimized for high-volume parallel processing; for small lists (under 20), you can pass a direct list of `addresses`. For long lists (20+), you MUST use the `source_file` and `address_column` arguments to let the tool process the file directly. This is significantly faster and avoids prompt size limits.\n"
-            "5. EFFICIENCY: NEVER `cat` large files (1MB+). Use `grep`, `head`, `awk`, or `cut` to extract only the needed lines/columns. For complex CSV filtering, joining, or analysis, you can use `duckdb` (SQL) or `pandas` (via python) which are pre-installed in your environment. IMPORTANT: Always use the absolute path `/app/.venv/bin/python` to run python scripts to ensure pre-installed libraries like `pandas` are correctly loaded.\n"
+            "5. EFFICIENCY & ENCODING: NEVER `cat` large files (1MB+). Use `grep`, `head`, `awk`, or `cut` to extract only the needed lines/columns. For complex CSV filtering, joining, or analysis, you can use `duckdb` (SQL) or `pandas` (via python) which are pre-installed in your environment. \n"
+            "   - CRITICAL: If a tool fails with a 'UnicodeDecodeError' or 'binary file' error, the file likely uses `latin-1` encoding. \n"
+            "   - FIX: In Pandas, use `pd.read_csv(..., encoding='latin-1')`. In DuckDB, it handles most encodings automatically but you can specify if needed. \n"
+            "   - AVOID: Do not use complex `awk` commands for CSV filtering as they often fail on quoted fields and missing headers.\n"
+            "   - PYTHON PATH: Always use the absolute path `/app/.venv/bin/python` to run python scripts.\n"
             "6. PATH REPORTING (CRITICAL):\n"
             "   - INTERNAL ROOT: `/app/` is your internal root.\n"
             "   - MAPPING: Any path starting with `/app/` MUST be converted to a relative path for the user.\n"
             "   - EXAMPLE: `/app/output/20260406_.../file.xlsx` MUST be reported as `output/20260406_.../file.xlsx`.\n"
             "   - MANDATE: NEVER include `/app/` in your final response to the user. Always strip it.\n"
             "7. REFLECTION: Before executing tools or providing a final answer, provide a very brief (1-sentence) reflection or plan in your message content (ideally max 100 chars). This will be shown to the user as a status update.\n"
-            "8. VISION AUDIT PRECISION: When using `sitecheck_mcp` tools, you MUST identify the SPECIFIC target object from the request. Your `analysis_prompt` must explicitly tell the MCP what object to look for and instruct it that if the object is NOT visible, all other analysis fields MUST be set to 'N/A'. Your `analysis_schema` MUST include a field named `[OBJECT_NAME]_visible` with literal options (e.g., 'Yes', 'No', 'Partial') and 2-3 other cursory-glance fields (e.g., 'Structural_Condition', 'Debris_Present' or other, depending on the user request). ALL fields MUST use literals (enums), NOT booleans. Every analysis field MUST include an 'N/A' option. Limit analysis to 2-3 simple questions answerable at a cursory glance from Street View. Max 1 string field for a one-sentence comment. NO numeric scores. Pass a `timeout` argument of 10 (seconds) for all site checks unless explicitly told otherwise.\n"
+            "8. VISION AUDIT PRECISION: When using `sitecheck_mcp` tools, you MUST identify the SPECIFIC target object from the request. Your `analysis_prompt` must explicitly tell the MCP what object to look for and instruct it that if the object is NOT visible, all other analysis fields MUST be set to 'N/A'. Your `analysis_schema` MUST include a field named `[OBJECT_NAME]_visible` with literal options (e.g., 'Yes', 'No', 'Partial') and 2-3 other cursory-glance fields (e.g., 'Structural_Condition', 'Debris_Present' or other, depending on the user request). ALL fields MUST use literals (enums), NOT booleans. Every analysis field MUST include an 'N/A' option. Limit analysis to 2-3 simple questions answerable at a cursory glance from Street View. Max 1 string field for a one-sentence comment. NO numeric scores. Pass a `timeout` argument of 600 (seconds) for all site checks unless explicitly told otherwise.\n"
+            "9. SUMMARIZING: YOUR JOB IS TO PREPROCESS THE DATA AND THEN JUST THROW IT INTO THE MCP WITH THE PROPER ARGUMENTS. THRE IS NOT MUCH ELSE TO DO."
         )
 
 
@@ -455,24 +466,43 @@ class SiteCheckAgentExecutor(AgentExecutor):
                             # Inject output_dir for MCP
                             args["output_dir"] = session_dir
                             
-                            async def handle_progress(*args, **kwargs):
+                            async def handle_notification(notification):
                                 if cancel_event.is_set():
                                     return
+                                
+                                # Handle progress updates
+                                if hasattr(notification, 'params') and 'progress' in notification.params:
+                                    p = notification.params
+                                    progress = p.get('progress', 0)
+                                    total = p.get('total', 0)
+                                    if total:
+                                        percent = (progress / total * 100)
+                                        bar_length = 20
+                                        filled_length = int(bar_length * progress // total)
+                                        bar = "█" * filled_length + "░" * (bar_length - filled_length)
+                                        await status.update_progress(f"|{bar}| {percent:.1f}% ({int(progress)}/{int(total)})")
+                                
+                                # Handle log/info messages from server
+                                if hasattr(notification, 'method') and notification.method == "notifications/message":
+                                    msg = notification.params.get("message", "")
+                                    if msg:
+                                        await status.update_status(msg)
 
-                                progress = args[0] if len(args) > 0 else kwargs.get("progress", 0)
-                                total = args[1] if len(args) > 1 else kwargs.get("total", None)
-                                if progress is not None:
-                                    percent = (progress / total * 100) if total else 0
+                            async def handle_progress(progress, total, *args):
+                                if total:
+                                    percent = (progress / total * 100)
                                     bar_length = 20
-                                    filled_length = int(bar_length * progress // total) if total else 0
+                                    filled_length = int(bar_length * progress // total)
                                     bar = "█" * filled_length + "░" * (bar_length - filled_length)
-                                    
-                                    await status.update_progress(f"|{bar}| {percent:.1f}% ({int(progress)}/{int(total) if total else '?'})")
+                                    msg = f"|{bar}| {percent:.1f}% ({int(progress)}/{int(total)})"
+                                    if args and args[0]: # If there is a label
+                                        msg += f" - {args[0]}"
+                                    await status.update_progress(msg)
 
                             result = await session.call_tool(
                                 name, 
                                 args,
-                                progress_callback=handle_progress
+                                progress_callback=lambda p, t, *rest: asyncio.create_task(handle_progress(p, t, *rest))
                             )
                             
                             if not cancel_event.is_set():
