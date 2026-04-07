@@ -1,6 +1,6 @@
 # Site Check Pipeline 🔭
 
-Automated OSINT pipeline containing an A2A-compatible custom agent and an MCP server.
+Automated OSINT pipeline for investigating batches of sites in parallel using the Google Maps platform. Consists of an A2A-compatible data-preprocessing agent and an MCP server.
 
 ## Motivation
 
